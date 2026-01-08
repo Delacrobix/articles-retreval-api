@@ -75,7 +75,7 @@ async def get_articles(
                 "url",
                 "meta_author",
                 "meta_img",
-                "body",
+                "article_content",
             ],
             "query": {
                 "bool": {"filter": [{"term": {"meta_author.enum": "Jeffrey Rengifo"}}]}
