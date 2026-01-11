@@ -71,6 +71,7 @@ async def get_articles(
             "_source": [
                 "title",
                 "meta_description",
+                "meta_published_time",
                 "url",
                 "url_path_dir3",
                 "meta_author",
@@ -97,6 +98,7 @@ async def get_articles(
                 "coverImage": source.get("meta_img", ""),
                 "link": source.get("url", ""),
                 "slug": source.get("url_path_dir3", ""),
+                "publishedAt": source.get("meta_published_time", ""),
                 "authors": (
                     [source.get("meta_author", "")] if source.get("meta_author") else []
                 ),
