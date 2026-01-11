@@ -103,7 +103,7 @@ async def get_articles(
                 "authors": (
                     [source.get("meta_author", "")] if source.get("meta_author") else []
                 ),
-                "body": source.get("body", ""),
+                "body": source.get("article_content", ""),
             }
             articles.append(article)
 
