@@ -81,6 +81,7 @@ async def get_articles(
             "query": {
                 "bool": {"filter": [{"term": {"meta_author.enum": "Jeffrey Rengifo"}}]}
             },
+            "sort": [{"meta_published_time": {"order": "desc"}}],
         }
 
         # Execute search
