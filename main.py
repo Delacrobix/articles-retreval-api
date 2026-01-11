@@ -46,10 +46,29 @@ async def healthcheck():
         )
 
 
+# Available fields mapping (API field -> ES field)
+FIELD_MAPPING = {
+    "title": "title",
+    "description": "meta_description",
+    "coverImage": "meta_img",
+    "link": "url",
+    "slug": "url_path_dir3",
+    "publishedAt": "meta_published_time",
+    "authors": "meta_author",
+    "body": "article_content",
+}
+
+VALID_FIELDS = list(FIELD_MAPPING.keys())
+
+
 @app.get("/articles")
 async def get_articles(
     size: int = Query(50, ge=1, le=100, description="Number of results to return"),
     page: int = Query(1, ge=1, description="Page number for pagination"),
+    fields: Optional[str] = Query(
+        None,
+        description="Comma-separated list of fields to return (e.g., 'title,description,link')",
+    ),
 ):
     """
     Retrieve articles from Elasticsearch filtered by Jeffrey Rengifo
@@ -61,6 +80,22 @@ async def get_articles(
         )
 
     try:
+        # Parse requested fields
+        if fields:
+            requested_fields = [f.strip() for f in fields.split(",")]
+            invalid = [f for f in requested_fields if f not in VALID_FIELDS]
+
+            if invalid:
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"Invalid fields: {invalid}. Valid fields are: {VALID_FIELDS}",
+                )
+        else:
+            requested_fields = VALID_FIELDS
+
+        # Get ES fields for the requested API fields
+        es_fields = [FIELD_MAPPING[f] for f in requested_fields]
+
         # Calculate from parameter for pagination
         from_param = (page - 1) * size
 
@@ -68,16 +103,7 @@ async def get_articles(
         search_query = {
             "size": size,
             "from": from_param,
-            "_source": [
-                "title",
-                "meta_description",
-                "meta_published_time",
-                "url",
-                "url_path_dir3",
-                "meta_author",
-                "meta_img",
-                "article_content",
-            ],
+            "_source": es_fields,
             "query": {
                 "bool": {"filter": [{"term": {"meta_author.enum": "Jeffrey Rengifo"}}]}
             },
@@ -87,24 +113,22 @@ async def get_articles(
         # Execute search
         response = es_client.search(index=ES_INDEX, body=search_query)
 
-        print(response)
-
         # Format results
         articles = []
         for hit in response["hits"]["hits"]:
             source = hit["_source"]
-            article = {
-                "title": source.get("title", ""),
-                "description": source.get("meta_description", ""),
-                "coverImage": source.get("meta_img", ""),
-                "link": source.get("url", ""),
-                "slug": source.get("url_path_dir3", ""),
-                "publishedAt": source.get("meta_published_time", ""),
-                "authors": (
-                    [source.get("meta_author", "")] if source.get("meta_author") else []
-                ),
-                "body": source.get("article_content", ""),
-            }
+            article = {}
+
+            for api_field in requested_fields:
+                es_field = FIELD_MAPPING[api_field]
+
+                if api_field == "authors":
+                    article[api_field] = (
+                        [source.get(es_field, "")] if source.get(es_field) else []
+                    )
+                else:
+                    article[api_field] = source.get(es_field, "")
+
             articles.append(article)
 
         # Return results with pagination metadata
