@@ -68,11 +68,11 @@ async def get_articles(
         search_query = {
             "size": size,
             "from": from_param,
-            # "from": from_param,
             "_source": [
                 "title",
                 "meta_description",
                 "url",
+                "url_path_dir3",
                 "meta_author",
                 "meta_img",
                 "article_content",
@@ -96,6 +96,7 @@ async def get_articles(
                 "description": source.get("meta_description", ""),
                 "coverImage": source.get("meta_img", ""),
                 "link": source.get("url", ""),
+                "slug": source.get("url_path_dir3", ""),
                 "authors": (
                     [source.get("meta_author", "")] if source.get("meta_author") else []
                 ),
