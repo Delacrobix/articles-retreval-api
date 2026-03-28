@@ -73,6 +73,7 @@ async def get_articles(
     """
     Retrieve articles from Elasticsearch filtered by Jeffrey Rengifo
     """
+
     if not es_client:
         raise HTTPException(
             status_code=500,
@@ -143,6 +144,46 @@ async def get_articles(
     except Exception as e:
         raise HTTPException(
             status_code=500, detail=f"Error retrieving articles: {str(e)}"
+        )
+
+
+@app.get("/top-authors")
+async def get_top_authors(
+    size: int = Query(10, ge=1, le=100, description="Number of top authors to return"),
+):
+    """
+    Retrieve top authors by article count using Elasticsearch terms aggregation
+    """
+
+    if not es_client:
+        raise HTTPException(
+            status_code=500,
+            detail="Elasticsearch client not configured. Please set ELASTICSEARCH_ENDPOINT and ES_API_KEY environment variables.",
+        )
+
+    try:
+        search_query = {
+            "size": 0,
+            "aggs": {
+                "top_authors": {
+                    "terms": {
+                        "field": "meta_author.enum",
+                        "size": size,
+                    }
+                }
+            },
+        }
+
+        response = es_client.search(index=ES_INDEX, body=search_query)
+
+        buckets = response["aggregations"]["top_authors"]["buckets"]
+        authors = [{"author": b["key"], "count": b["doc_count"]} for b in buckets]
+
+        return {"authors": authors, "total": len(authors)}
+
+    except Exception as e:
+        raise HTTPException(
+            status_code=500, detail=f"Error retrieving top authors: {str(e)}"
         )
 
 
