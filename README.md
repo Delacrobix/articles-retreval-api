@@ -2,48 +2,80 @@
 
 ## Endpoints
 
-### 1. Health Check
+### Articles
+
+#### Health Check
 ```
 GET /health
 ```
 Verifica el estado de la API y la conexión con Elasticsearch.
 
-### 2. Get Articles
+#### Get Articles
 ```
-GET /articles?size=50&page=1
+GET /articles?size=50&page=1&fields=title,description,link
+```
+Retorna artículos paginados. Parámetros:
+- `size` (default: 50) — cantidad de resultados por página (1-100)
+- `page` (default: 1) — número de página
+- `fields` (opcional) — campos a retornar separados por coma. Campos válidos: `title`, `description`, `coverImage`, `link`, `slug`, `publishedAt`, `authors`, `body`
+
+#### Top Authors
+```
+GET /top-authors?size=10
+```
+Retorna los autores con más artículos. Parámetros:
+- `size` (default: 10) — cantidad de autores a retornar (1-100)
+
+### Observability Labs
+
+Los mismos endpoints disponibles bajo el prefijo `/obs`, consultando el índice `search-observability-labs-index`.
+
+```
+GET /obs/health
+GET /obs/articles?size=50&page=1&fields=title,description,link
+GET /obs/top-authors?size=10
 ```
 
+## Estructura del proyecto
+
+```
+├── config.py              # Cliente de Elasticsearch compartido
+├── main.py                # Entry point de la API
+├── routers/
+│   ├── articles.py        # Rutas de articles
+│   └── observability.py   # Rutas de observability labs
+```
 
 ## Instalación
 
-1. Create a virtual environment:
+1. Crear un virtual environment:
    ```bash
    python -m venv venv
    source venv/bin/activate  # On Windows: venv\Scripts\activate
    ```
 
-2. Install dependencies:
+2. Instalar dependencias:
    ```bash
    pip install -r requirements.txt
    ```
 
-3. Configure environment variables:
+3. Configurar variables de entorno:
    ```bash
    cp .env.example .env
    ```
 
-5. Execute the api:
+4. Ejecutar la API:
    ```bash
    python main.py
    ```
 
-   with Uvicorn:
+   Con Uvicorn:
    ```bash
    uvicorn main:app --reload
    ```
 
 ## Documentación
 
-Once the server is running, access the API documentation at:
+Una vez el servidor esté corriendo, accede a la documentación en:
 - Swagger UI: http://localhost:8000/docs
 - ReDoc: http://localhost:8000/redoc
