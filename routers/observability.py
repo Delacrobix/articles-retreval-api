@@ -79,7 +79,7 @@ async def get_articles(
             "query": {
                 "bool": {"filter": [{"term": {"meta_author.enum": "Jeffrey Rengifo"}}]}
             },
-            "sort": [{"meta_published_time": {"order": "desc"}}],
+            "sort": [{"published_date": {"order": "desc", "missing": "_last"}}],
         }
 
         response = es_client.search(index=ES_INDEX, body=search_query)
