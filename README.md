@@ -19,6 +19,10 @@ Retorna artículos paginados. Parámetros:
 - `page` (default: 1) — número de página
 - `fields` (opcional) — campos a retornar separados por coma. Campos válidos: `title`, `description`, `coverImage`, `link`, `slug`, `publishedAt`, `authors`, `body`
 
+Los artículos de Search Labs y Observability Labs se leen del mismo índice,
+configurado mediante `ES_INDEX`. Este endpoint limita los resultados a
+documentos cuyo campo `source` es `search-labs`.
+
 #### Top Authors
 ```
 GET /top-authors?size=10
@@ -28,7 +32,12 @@ Retorna los autores con más artículos. Parámetros:
 
 ### Observability Labs
 
-Los mismos endpoints disponibles bajo el prefijo `/obs`, consultando el índice `search-observability-labs-index`.
+Los mismos endpoints están disponibles bajo el prefijo `/obs`. Consultan el
+mismo índice combinado, pero limitan los resultados a documentos cuyo campo
+`source` es `observability-labs`.
+
+Consulta [API.md](API.md) para ver el contrato completo, las consultas y las
+reglas de extracción requeridas por el crawler.
 
 ```
 GET /obs/health

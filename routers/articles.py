@@ -1,26 +1,20 @@
-import os
 from typing import Optional
 
 from fastapi import APIRouter, HTTPException, Query
 
 from config import es_client
+from routers.labs_common import (
+    ES_INDEX,
+    VALID_FIELDS,
+    build_article_query,
+    build_top_authors_query,
+    serialize_article,
+    source_fields,
+)
 
 router = APIRouter()
 
-ES_INDEX = os.getenv("ES_INDEX", "articles")
-
-FIELD_MAPPING = {
-    "title": "title",
-    "description": "meta_description",
-    "coverImage": "meta_img",
-    "link": "url",
-    "slug": "url_path_dir3",
-    "publishedAt": "meta_published_time",
-    "authors": "meta_author",
-    "body": "article_content",
-}
-
-VALID_FIELDS = list(FIELD_MAPPING.keys())
+LAB_SOURCE = "search-labs"
 
 
 @router.get("/health")
@@ -69,37 +63,22 @@ async def get_articles(
         else:
             requested_fields = VALID_FIELDS
 
-        es_fields = [FIELD_MAPPING[f] for f in requested_fields]
+        es_fields = source_fields(requested_fields)
         from_param = (page - 1) * size
 
-        search_query = {
-            "size": size,
-            "from": from_param,
-            "_source": es_fields,
-            "query": {
-                "bool": {"filter": [{"term": {"meta_author.enum": "Jeffrey Rengifo"}}]}
-            },
-            "sort": [{"meta_published_time": {"order": "desc"}}],
-        }
+        search_query = build_article_query(
+            LAB_SOURCE,
+            size=size,
+            offset=from_param,
+            es_fields=es_fields,
+        )
 
         response = es_client.search(index=ES_INDEX, body=search_query)
 
         articles = []
         for hit in response["hits"]["hits"]:
             source = hit["_source"]
-            article = {}
-
-            for api_field in requested_fields:
-                es_field = FIELD_MAPPING[api_field]
-
-                if api_field == "authors":
-                    article[api_field] = (
-                        [source.get(es_field, "")] if source.get(es_field) else []
-                    )
-                else:
-                    article[api_field] = source.get(es_field, "")
-
-            articles.append(article)
+            articles.append(serialize_article(source, requested_fields))
 
         return {
             "articles": articles,
@@ -130,17 +109,7 @@ async def get_top_authors(
         )
 
     try:
-        search_query = {
-            "size": 0,
-            "aggs": {
-                "top_authors": {
-                    "terms": {
-                        "field": "meta_author.enum",
-                        "size": size,
-                    }
-                }
-            },
-        }
+        search_query = build_top_authors_query(LAB_SOURCE, size=size)
 
         response = es_client.search(index=ES_INDEX, body=search_query)
 
