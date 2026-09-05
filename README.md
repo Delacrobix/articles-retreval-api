@@ -36,8 +36,8 @@ Los mismos endpoints están disponibles bajo el prefijo `/obs`. Consultan el
 mismo índice combinado, pero limitan los resultados a documentos cuyo campo
 `source` es `observability-labs`.
 
-Consulta [API.md](API.md) para ver el contrato completo, las consultas y las
-reglas de extracción requeridas por el crawler.
+Consulta [API.md](API.md) para ver el contrato completo de endpoints,
+parámetros, respuestas y errores.
 
 ```
 GET /obs/health

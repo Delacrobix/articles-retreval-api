@@ -1,42 +1,31 @@
 # Articles Retrieval API
 
-API de solo lectura para los artículos de Elastic Search Labs y Elastic
+API de solo lectura para consultar artículos de Elastic Search Labs y Elastic
 Observability Labs escritos por Jeffrey Rengifo.
 
-Ambas colecciones se almacenan en un único índice de Elasticsearch. Los
-endpoints permanecen separados y utilizan el campo extraído `source` para
-distinguir cada sección.
+Todas las respuestas usan JSON.
 
-## Configuración
+## Rutas disponibles
 
-Variables de entorno requeridas:
-
-```dotenv
-ELASTICSEARCH_ENDPOINT=https://example.es.us-central1.gcp.cloud.es.io:443
-ES_API_KEY=...
-ES_INDEX=search-observability-labs-index
-```
-
-`ES_INDEX` es compartido por todos los endpoints. Su valor predeterminado es
-`search-observability-labs-index`.
+| Colección | Estado | Artículos | Autores principales |
+|---|---|---|---|
+| Search Labs | `GET /health` | `GET /articles` | `GET /top-authors` |
+| Observability Labs | `GET /obs/health` | `GET /obs/articles` | `GET /obs/top-authors` |
 
 ## Modelo de respuesta
 
 Los artículos pueden contener los siguientes campos:
 
-| Campo de la API | Campo principal en Elasticsearch | Fallback | Tipo |
-|---|---|---|---|
-| `title` | `title` | — | string |
-| `description` | `meta_description` | — | string |
-| `coverImage` | `meta_img` | — | string |
-| `link` | `url` | — | string |
-| `slug` | `url_path_dir3` | — | string |
-| `publishedAt` | `published_date` | `meta_published_time` | string |
-| `authors` | `meta_author` | — | string[] |
-| `body` | `article_content` | `body_content` | string |
-
-Los valores de `authors` se normalizan a una lista plana y sin duplicados,
-incluso cuando el crawler almacena arrays anidados.
+| Campo | Tipo | Descripción |
+|---|---|---|
+| `title` | string | Título del artículo |
+| `description` | string | Descripción breve |
+| `coverImage` | string | URL de la imagen de portada |
+| `link` | string | URL pública del artículo |
+| `slug` | string | Identificador del artículo en la URL |
+| `publishedAt` | string | Fecha de publicación |
+| `authors` | string[] | Lista de autores, sin duplicados |
+| `body` | string | Contenido del artículo |
 
 ## Endpoints de Search Labs
 
@@ -44,14 +33,15 @@ incluso cuando el crawler almacena arrays anidados.
 
 Comprueba que el cliente de Elasticsearch esté configurado.
 
+```json
+{
+  "status": "ok"
+}
+```
+
 ### `GET /articles`
 
-Devuelve artículos que cumplen ambos filtros:
-
-```text
-meta_author.enum = Jeffrey Rengifo
-source.enum      = search-labs
-```
+Devuelve artículos de Search Labs escritos por Jeffrey Rengifo.
 
 Parámetros:
 
@@ -89,19 +79,36 @@ Respuesta:
 
 ### `GET /top-authors`
 
-Devuelve los autores con más documentos cuyo `source.enum` sea `search-labs`.
+Devuelve los autores con más artículos de Search Labs.
+
+Parámetros:
+
+| Parámetro | Valor predeterminado | Restricciones | Descripción |
+|---|---:|---:|---|
+| `size` | 10 | 1–100 | Número máximo de autores |
 
 ```http
 GET /top-authors?size=10
 ```
 
+Respuesta:
+
+```json
+{
+  "authors": [
+    {
+      "author": "Jeffrey Rengifo",
+      "count": 10
+    }
+  ],
+  "total": 1
+}
+```
+
 ## Endpoints de Observability Labs
 
-Los mismos endpoints se encuentran bajo `/obs` y aplican:
-
-```text
-source.enum = observability-labs
-```
+Los mismos endpoints se encuentran bajo `/obs` y devuelven resultados de
+Observability Labs.
 
 ```http
 GET /obs/health
@@ -111,111 +118,24 @@ GET /obs/top-authors?size=10
 
 `/obs/articles` también limita los resultados a `Jeffrey Rengifo`.
 
+Los parámetros y formatos de respuesta son idénticos a los endpoints de Search
+Labs descritos anteriormente.
+
 ## Orden de resultados
 
-Los artículos se ordenan de forma descendente mediante:
-
-1. `published_date`
-2. `meta_published_time`, para documentos del crawler anterior
-3. `last_crawled_at`, cuando no existe una fecha de publicación
-
-Los campos ausentes se colocan al final.
-
-## Contrato del crawler
-
-Los endpoints requieren que el crawler genere `source` con uno de estos valores
-exactos:
-
-```text
-search-labs
-observability-labs
-```
-
-### Regla `source` para Search Labs
-
-```text
-URL filter: Begins with /search-labs/blog/
-Field name: source
-Source: HTML
-Selector: meta[property='og:url']
-Content: A fixed value
-Value: search-labs
-Store as: String
-```
-
-### Regla `source` para Observability Labs
-
-```text
-URL filter: Begins with /observability-labs/blog/
-Field name: source
-Source: HTML
-Selector: meta[property='og:url']
-Content: A fixed value
-Value: observability-labs
-Store as: String
-```
-
-### Imagen
-
-```text
-Field name: meta_img
-Source: HTML
-Selector type: XPath
-Selector: /html/head/meta[@property='og:image']/@content
-Content: Extracted value
-Store as: String
-```
-
-### Autor
-
-```text
-Field name: meta_author
-Source: HTML
-Selector type: XPath
-Selector: //h1/following-sibling::div[.//time][1]//a[contains(@class, 'blog-author')]/text()
-Content: Extracted value
-Store as: Array
-```
-
-### Fecha de publicación
-
-```text
-Field name: published_date
-Source: HTML
-Selector type: XPath
-Selector: //h1/following-sibling::div[.//time][1]//time/@datetime
-Content: Extracted value
-Store as: String
-```
-
-### Cuerpo del artículo
-
-```text
-Field name: article_content
-Source: HTML
-Selector type: XPath
-Selector: //div[not(@class) and .//h2[@id] and parent::div[contains(@class, 'flex-col')]][1]
-Content: Extracted value
-Store as: String
-```
-
-Las extraction rules deben aplicarse solamente a URLs `/search-labs/blog/` o
-`/observability-labs/blog/`. No sustituyen las crawl rules que controlan qué
-páginas visita el crawler.
+Los artículos se devuelven del más reciente al más antiguo. Los documentos sin
+fecha de publicación aparecen al final.
 
 ## Errores
 
-- `400`: se solicitó un campo no admitido en `fields`.
+- `422`: un parámetro no cumple las restricciones indicadas.
 - `500`: falta la configuración de Elasticsearch o Elasticsearch rechazó la
   consulta.
 
-## Ejecución local
+Los errores incluyen una explicación en `detail`:
 
-```bash
-python -m venv venv
-source venv/bin/activate
-pip install -r requirements.txt
-uvicorn main:app --reload
+```json
+{
+  "detail": "Error retrieving articles: ..."
+}
 ```
-
-Swagger UI estará disponible en `http://localhost:8000/docs`.
