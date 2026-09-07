@@ -3,7 +3,8 @@ from typing import Any, Iterable
 
 
 # Both Labs sections are crawled into the same Elasticsearch index and are
-# distinguished by the custom `source` extraction field.
+# distinguished by the custom `lab_source` extraction field, falling back to
+# the section name in the URL path.
 ES_INDEX = os.getenv("ES_INDEX", "search-observability-labs-index")
 
 FIELD_MAPPING = {
@@ -71,8 +72,22 @@ def serialize_article(source: dict[str, Any], requested_fields: Iterable[str]) -
 
 
 def source_filter(source: str) -> dict:
-    """Restrict a query to one Labs section inside the combined index."""
-    return {"term": {"source.enum": source}}
+    """Restrict a query to one Labs section inside the combined index.
+
+    Newly crawled pages carry the custom `lab_source` extraction field, but the
+    rule only runs on the sections the current crawl configuration still
+    visits. `url_path_dir1` holds the same section name on every document, so
+    matching either keeps documents reachable while the crawler catches up.
+    """
+    return {
+        "bool": {
+            "should": [
+                {"term": {"lab_source.enum": source}},
+                {"term": {"url_path_dir1": source}},
+            ],
+            "minimum_should_match": 1,
+        }
+    }
 
 
 def article_sort() -> list[dict]:
@@ -86,10 +101,12 @@ def article_sort() -> list[dict]:
             }
         },
         {
-            "meta_published_time": {
+            # meta_published_time is mapped as text, which cannot be sorted on;
+            # its keyword sub-field holds the same ISO-8601 string.
+            "meta_published_time.enum": {
                 "order": "desc",
                 "missing": "_last",
-                "unmapped_type": "date",
+                "unmapped_type": "keyword",
             }
         },
         {

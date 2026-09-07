@@ -47,16 +47,24 @@ class LabsCommonTests(unittest.TestCase):
         )
         self.assertEqual(article, {"title": "Example", "authors": ["Jeffrey Rengifo"]})
 
-    def test_source_filter_uses_custom_source_keyword(self):
+    def test_source_filter_matches_lab_source_or_url_path(self):
         self.assertEqual(
             source_filter("search-labs"),
-            {"term": {"source.enum": "search-labs"}},
+            {
+                "bool": {
+                    "should": [
+                        {"term": {"lab_source.enum": "search-labs"}},
+                        {"term": {"url_path_dir1": "search-labs"}},
+                    ],
+                    "minimum_should_match": 1,
+                }
+            },
         )
 
-    def test_sort_has_safe_fallbacks(self):
+    def test_sort_avoids_unsortable_text_fields(self):
         self.assertEqual(
             [next(iter(item)) for item in article_sort()],
-            ["published_date", "meta_published_time", "last_crawled_at"],
+            ["published_date", "meta_published_time.enum", "last_crawled_at"],
         )
 
     def test_article_query_uses_search_source_filter(self):
@@ -67,14 +75,14 @@ class LabsCommonTests(unittest.TestCase):
             es_fields=["title", "meta_author"],
         )
         filters = query["query"]["bool"]["filter"]
-        self.assertIn({"term": {"source.enum": "search-labs"}}, filters)
+        self.assertIn(source_filter("search-labs"), filters)
         self.assertEqual(query["from"], 20)
         self.assertEqual(query["size"], 10)
 
     def test_top_authors_query_uses_observability_source_filter(self):
         query = build_top_authors_query("observability-labs", size=25)
         filters = query["query"]["bool"]["filter"]
-        self.assertIn({"term": {"source.enum": "observability-labs"}}, filters)
+        self.assertIn(source_filter("observability-labs"), filters)
         self.assertEqual(query["aggs"]["top_authors"]["terms"]["size"], 25)
 
 

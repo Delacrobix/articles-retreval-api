@@ -21,7 +21,9 @@ Retorna artículos paginados. Parámetros:
 
 Los artículos de Search Labs y Observability Labs se leen del mismo índice,
 configurado mediante `ES_INDEX`. Este endpoint limita los resultados a
-documentos cuyo campo `source` es `search-labs`.
+documentos de la sección `search-labs`, identificados por el campo de
+extracción `lab_source` o, si el crawler aún no lo ha escrito, por
+`url_path_dir1`.
 
 #### Top Authors
 ```
@@ -33,8 +35,8 @@ Retorna los autores con más artículos. Parámetros:
 ### Observability Labs
 
 Los mismos endpoints están disponibles bajo el prefijo `/obs`. Consultan el
-mismo índice combinado, pero limitan los resultados a documentos cuyo campo
-`source` es `observability-labs`.
+mismo índice combinado, pero limitan los resultados a la sección
+`observability-labs`.
 
 Consulta [API.md](API.md) para ver el contrato completo de endpoints,
 parámetros, respuestas y errores.
@@ -51,7 +53,8 @@ GET /obs/top-authors?size=10
 ├── config.py              # Cliente de Elasticsearch compartido
 ├── main.py                # Entry point de la API
 ├── routers/
-│   ├── articles.py        # Rutas de articles
+│   ├── articles.py        # Rutas de articles (Search Labs)
+│   ├── labs_common.py     # Query builders y mapeo de campos compartidos
 │   └── observability.py   # Rutas de observability labs
 ```
 
