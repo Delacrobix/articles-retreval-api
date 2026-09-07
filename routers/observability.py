@@ -88,6 +88,8 @@ async def get_articles(
             "total_pages": (response["hits"]["total"]["value"] + size - 1) // size,
         }
 
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(
             status_code=500, detail=f"Error retrieving articles: {str(e)}"
